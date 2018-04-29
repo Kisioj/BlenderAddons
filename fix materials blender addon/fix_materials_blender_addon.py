@@ -5,7 +5,7 @@ bl_info = {
     "name": "Fix materials",
     "description": "Removing .001, .002 etc. suffix from materials",
     "author": "Krzysztof Jura <kisioj@gmail.com>",
-    "version": (1, 0),
+    "version": (1, 1),
     "category": "Material",
 }
 
@@ -17,15 +17,13 @@ def fix_material_names():
     }
 
     for obj in bpy.data.objects:
-        if not (obj.data and getattr(obj.data, 'materials')):
-            break
-
         MATERIAL_NAME_2_LOCAL_INDEX = {
             material.name: index
-            for index, material in enumerate(obj.data.materials)
+            for index, material in enumerate(obj.material_slots)
         }
 
-        for index, material in enumerate(obj.data.materials):
+        for index, material_slot in enumerate(obj.material_slots):
+            material = material_slot.material
             if not re.search(r'\.\d{3}$', material.name):
                 continue
 
@@ -38,7 +36,7 @@ def fix_material_names():
 
             local_index = MATERIAL_NAME_2_LOCAL_INDEX.get(new_name)
             if local_index is None:
-                obj.data.materials[index] = global_material
+                obj.material_slots[index] = global_material
                 continue
 
             bpy.ops.object.mode_set(mode='EDIT')
