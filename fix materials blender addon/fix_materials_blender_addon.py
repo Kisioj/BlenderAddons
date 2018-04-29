@@ -9,6 +9,8 @@ bl_info = {
     "category": "Material",
 }
 
+SUFFIX = r'\.\d{3}$'
+
 
 def fix_material_names():
     MATERIAL_NAME_2_GLOBAL_MATERIAL = {
@@ -18,35 +20,41 @@ def fix_material_names():
 
     for obj in bpy.data.objects:
         MATERIAL_NAME_2_LOCAL_INDEX = {
-            material.name: index
-            for index, material in enumerate(obj.material_slots)
+            material_slot.material.name: index
+            for index, material_slot in enumerate(obj.material_slots)
         }
 
+        material_slots_to_remove = []
+
+        bpy.ops.object.mode_set(mode='EDIT')
         for index, material_slot in enumerate(obj.material_slots):
             material = material_slot.material
-            if not re.search(r'\.\d{3}$', material.name):
+            if not re.search(SUFFIX, material.name):
                 continue
 
-            new_name = ''.join(re.split(r'\.\d{3}$', material.name))
+            name_without_suffix = ''.join(re.split(SUFFIX, material.name))
 
-            global_material = MATERIAL_NAME_2_GLOBAL_MATERIAL.get(new_name)
-            if not global_material:
-                material.name = new_name
+            global_material = MATERIAL_NAME_2_GLOBAL_MATERIAL.get(name_without_suffix)
+            if global_material is None:
+                material.name = name_without_suffix
                 continue
 
-            local_index = MATERIAL_NAME_2_LOCAL_INDEX.get(new_name)
+            local_index = MATERIAL_NAME_2_LOCAL_INDEX.get(name_without_suffix)
             if local_index is None:
                 obj.material_slots[index] = global_material
                 continue
 
-            bpy.ops.object.mode_set(mode='EDIT')
             bpy.ops.mesh.select_all(action='DESELECT')
             obj.active_material_index = index
             bpy.ops.object.material_slot_select()
             obj.active_material_index = local_index
             bpy.ops.object.material_slot_assign()
+
+            material_slots_to_remove.append(index)
+
+        bpy.ops.object.mode_set(mode='OBJECT')
+        for index in material_slots_to_remove:
             obj.active_material_index = index
-            bpy.ops.object.mode_set(mode='OBJECT')
             bpy.ops.object.material_slot_remove()
 
 
