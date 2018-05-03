@@ -2,14 +2,45 @@ import bpy
 import re
 
 bl_info = {
-    "name": "Fix materials",
-    "description": "Removing .001, .002 etc. suffix from materials",
+    "name": "Fix & sort materials",
+    "description": "Removing .001, .002 etc. suffix from materials and sorting them by name",
     "author": "Krzysztof Jura <kisioj@gmail.com>",
-    "version": (1, 1),
+    "version": (1, 2),
     "category": "Material",
 }
 
 SUFFIX = r'\.\d{3}$'
+
+
+def bubble_sort(obj, key=lambda material: material.name.lower(), desc=False):
+    def should_move_material_down(material_index):
+        key1 = key(obj.material_slots[material_index].material)
+        key2 = key(obj.material_slots[material_index + 1].material)
+        if desc:
+            return key1 < key2
+        return key1 > key2
+
+    def move_material_down(material_index):
+        obj.active_material_index = material_index
+        bpy.ops.object.material_slot_move(direction='DOWN')
+
+    materials_count = len(obj.material_slots)
+    sorted_count = 0
+    while materials_count > sorted_count:
+        for index in range(materials_count - 1):
+            if should_move_material_down(index):
+                move_material_down(index)
+        sorted_count += 1
+
+
+def sort_materials():
+    def materials_key(material):
+        if material.name.startswith('P:'):
+            return chr(255) + material.name.lower()
+        return material.name.lower()
+
+    for obj in bpy.data.objects:
+        bubble_sort(obj, key=materials_key)
 
 
 def fix_material_names():
@@ -58,13 +89,21 @@ def fix_material_names():
             bpy.ops.object.material_slot_remove()
 
 
-class SimpleOperator(bpy.types.Operator):
-    """Tooltip"""
-    bl_idname = "object.simple_operator"
-    bl_label = "Simple Object Operator"
+class FixMaterialNamesOperator(bpy.types.Operator):
+    bl_idname = "objects.fix_material_names"
+    bl_label = "Fix Material Names Operator"
 
     def execute(self, context):
         fix_material_names()
+        return {'FINISHED'}
+
+
+class SortMaterialsOperator(bpy.types.Operator):
+    bl_idname = "objects.sort_materials"
+    bl_label = "Sort Materials Operator"
+
+    def execute(self, context):
+        sort_materials()
         return {'FINISHED'}
 
 
@@ -76,16 +115,19 @@ class UpdateMaterialNamesPanel(bpy.types.Panel):
     bl_category = "Tools"
 
     def draw(self, context):
-        self.layout.operator("object.simple_operator", text="Fix material names")
+        self.layout.operator("objects.fix_material_names", text="Fix material names")
+        self.layout.operator("objects.sort_materials", text="Sort materials")
 
 
 def register():
-    bpy.utils.register_class(SimpleOperator)
+    bpy.utils.register_class(FixMaterialNamesOperator)
+    bpy.utils.register_class(SortMaterialsOperator)
     bpy.utils.register_class(UpdateMaterialNamesPanel)
 
 
 def unregister():
-    bpy.utils.unregister_class(SimpleOperator)
+    bpy.utils.unregister_class(FixMaterialNamesOperator)
+    bpy.utils.unregister_class(SortMaterialsOperator)
     bpy.utils.unregister_class(UpdateMaterialNamesPanel)
 
 
